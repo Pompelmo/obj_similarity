@@ -9,7 +9,6 @@ import gensim
 import pickle
 import nltk
 import json
-import re
 from elasticsearch import Elasticsearch, helpers
 import suggalg1
 import globalvariable as gv
@@ -17,8 +16,8 @@ import globalvariable as gv
 gv.init()
 
 # load word2vec models
-model_1 = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/w2vmodel_description_stemmed')
-model_2 = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/w2vmodel_keywords_stemmed')
+model_1 = gensim.models.Word2Vec.load('source/w2vmodel_description_stemmed')
+model_2 = gensim.models.Word2Vec.load('source/w2vmodel_keywords_stemmed')
 
 # create client to query the index
 http = gv.http
@@ -35,28 +34,12 @@ similar = suggalg1.Suggest()
 
 # compute stop words from a file
 stop_words = []
-with open("/Users/Kate/Desktop/SpazioDati/stopword.txt", "r") as asd:
+with open("source/stopword.txt", "r") as asd:
     for line in asd:
         # eliminate character \n at the end of each line
         stop_words.append(line[:len(line)-1])
 
 stop_words = set(stop_words)
-
-
-def main():
-
-    # load all the Trento city companies websites
-    url_list = []
-
-    with open("/Users/Kate/Desktop/SpazioDati/websites_trento.csv", "r") as asd1:
-        reader = csv.reader(asd1)
-        for line1 in reader:
-            url_list.append(line1[1][7:])
-
-    # create dictionary[website1-website2] = similarity
-    # construct_dict_intersection(url_list, '/Users/Kate/Desktop/SpazioDati/TnWsSimInt.pkl')
-
-    construct_dict_mean(url_list, '/Users/Kate/Desktop/SpazioDati/TnWsSimMean.pkl')
 
 
 def construct_dict_mean(url_list, save_path):
@@ -285,6 +268,23 @@ def get_dictionaries_mean(tnweb, new_url_list):
         keywords[item], description[item] = get_info(item, tnweb)  # two set of words
 
     return keywords, description
+
+
+def main():
+
+    # load all the Trento city companies websites
+    url_list = []
+
+    with open("source/websites_trento.csv", "r") as asd1:
+        reader = csv.reader(asd1)
+        for line1 in reader:
+            url_list.append(line1[1][7:])
+
+    # create dictionary[website1-website2] = similarity
+
+    # construct_dict_intersection(url_list, 'source/TnWsSimInt.pkl')
+
+    construct_dict_mean(url_list, 'source/TnWsSimMean.pkl')
 
 
 if __name__ == '__main__':
