@@ -16,19 +16,12 @@ import re
 import nltk
 import globalvariable as gv
 
-gv.init()
-
-
-def main():
-    prova = Suggest()
-    prova.similar(["www.auto-futura.it"])
-
 
 class Suggest(object):
     def __init__(self):
         # load the two models
-        self.description = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/w2vmodel_description_stemmed')
-        self.keywords = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/w2vmodel_keywords_stemmed')
+        self.description = gensim.models.Word2Vec.load('source/w2vmodel_description_stemmed')
+        self.keywords = gensim.models.Word2Vec.load('source/w2vmodel_keywords_stemmed')
 
         # create elasticsearch client for the queries
         self.http = gv.http
@@ -37,7 +30,7 @@ class Suggest(object):
 
         # stop words and stemmer for italian words
         self.stemmer = nltk.stem.snowball.ItalianStemmer()  # ignore_stopwords=True)
-        self.stop_words = self.get_stop_words("/Users/Kate/Desktop/SpazioDati/stopword.txt")
+        self.stop_words = self.get_stop_words("source/stopword.txt")
 
     def most_similar(self, words, method):
         """having a list of words, creates a dictionary word-score from the w2v model"""
@@ -188,6 +181,12 @@ class Suggest(object):
 
         return set(stop_words)
 
+
+def main():
+    gv.init()
+
+    prova = Suggest()
+    prova.similar(["www.auto-futura.it"])
 
 
 if __name__ == '__main__':
