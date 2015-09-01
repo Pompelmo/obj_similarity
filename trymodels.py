@@ -10,7 +10,7 @@ def main():
     model_2 = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/d2vmodel_keywords_stemmed_20')
 
     # 10 most similar d2v labels are accessed in this way:
-    print model_2.docvecs.most_similar('www.anticapieve.net')
+    print model_2.docvecs.most_similar('www.ravinacar.it')
 
     # 10 most similar w2v and d2v words are accessed in this way:
     # print model_2.most_similar('pizz')
