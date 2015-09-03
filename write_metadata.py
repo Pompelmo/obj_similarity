@@ -3,6 +3,7 @@ from elasticsearch import Elasticsearch, helpers
 import csv
 import certifi
 import globalvariable as gv
+from urlparse import urlparse
 
 
 http = gv.http
@@ -12,7 +13,7 @@ es = Elasticsearch([http], http_auth=password, use_ssl=True, verify_certs=True,
                    ca_certs=certifi.where())
 
 
-def scan_index_out():
+def scan_index_out(field):
     """scan the index"""
     query = json.dumps({
         '_source': ['_id', 'description', 'keywords'],
@@ -63,7 +64,7 @@ def write_info(path, url_set, field):
     """function that creates a csv file website url - keywords/description"""
     # should be used once to have in memory information to retrieve
 
-    response = scan_index_out()  # scan the index
+    response = scan_index_out(field)  # scan the index
 
     i = j = 0
     with open(path, "w") as outfile:
@@ -92,9 +93,10 @@ def main():
     with open("source/websites.csv", "r") as asd:
         read = csv.reader(asd)
         for line in read:
-            url_list.append(line[1])
+            parsed = urlparse(line[1])
+            url_list.append(parsed.netloc)
 
-    url_set = set([item[7:] for item in url_list])  # retrieve url without http://
+    url_set = set(url_list)  # retrieve url without http://
 
     # write which websites has keywords and/or description
     write_meta_info(url_set, "source/websitesMetaPresence.csv")

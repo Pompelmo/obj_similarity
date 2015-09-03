@@ -3,7 +3,7 @@ import pickle
 
 def main():
     # load dictionary[website1,website2] = similarity
-    boh = open('/Users/Kate/Desktop/SpazioDati/TnWsSimJac.pkl', "r")
+    boh = open('source/TnWsSimJac.pkl', "r")
     print "start loading"
     asd = pickle.load(boh)
     print "finish loading"
