@@ -5,50 +5,13 @@
 
 import gensim.models.doc2vec
 from gensim.models import Doc2Vec
-import trainmodels
 import csv
 from random import shuffle
 from collections import defaultdict
 import datetime
+from TokenStem import TokenStem
 
-
-def load_keywords():
-    all_docs = []
-    path = 'source/websites_keywords.csv'
-    method = 'keywords'
-    stop_word_path = "source/stopword.txt"
-    sdf = trainmodels.MySentences(path, method, stop_word_path)
-
-    i = 0
-    with open(path, "r") as asd:
-        reader = csv.reader(asd)
-        for line in reader:
-            i += 1
-            tag = [line[0]]
-            value = sdf.tokenize_keywords(line[1])
-            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
-            if i % 1000 == 0:
-                print i
-
-    return all_docs[:]
-
-
-def load_description():
-    all_docs = []
-    path = 'source/websites_description.csv'
-    method = 'description'
-    stop_word_path = "source/stopword.txt"
-    sdf = trainmodels.MySentences(path, method, stop_word_path)
-    with open(path, "r") as asd:
-        reader = csv.reader(asd)
-        for line in reader:
-            tag = [line[0]]
-            value = sdf.tokenize_description(line[1])
-            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
-
-    return all_docs[:]
-
-
+sdf = TokenStem()
 best_error = defaultdict(lambda: 1.0)  # selectively print only best error achieved
 
 
@@ -78,6 +41,34 @@ def train_model_buck(doc_list, path):
     print "END %s" % datetime.datetime.now()
 
     train_model.save(path)
+
+
+def load_description():
+    all_docs = []
+    path = 'source/websites_description.csv'
+
+    with open(path, "r") as asd:
+        reader = csv.reader(asd)
+        for line in reader:
+            tag = [line[0]]
+            value = sdf.tokenize_description(line[1])
+            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
+
+    return all_docs[:]
+
+
+def load_keywords():
+    all_docs = []
+    path = 'source/websites_keywords.csv'
+
+    with open(path, "r") as asd:
+        reader = csv.reader(asd)
+        for line in reader:
+            tag = [line[0]]
+            value = sdf.tokenize_keywords(line[1])
+            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
+
+    return all_docs[:]
 
 
 def main():
