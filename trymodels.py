@@ -5,33 +5,97 @@
 import gensim
 
 
+def load_model():
+    # load model:
+    model = []
+    mtype = []
+    condition = True
+    while condition:
+        print "Which model do you want to load?"
+        print "Write 'A' for w2v keywords, 'B' for w2v description, 'C' for d2v keywords, 'D' for d2v description"
+        mod = raw_input('--> ')
+        if mod == "A":
+            model = gensim.models.Word2Vec.load('source/w2vmodel_keywords_stemmed')
+            mtype = "w2v"
+            condition = False
+        elif mod == "B":
+            model = gensim.models.Word2Vec.load('source/w2vmodel_description_stemmed')
+            mtype = "w2v"
+            condition = False
+        elif mod == "C":
+            model = gensim.models.Doc2Vec.load('source/d2vkeywords')
+            mtype = "d2v"
+            condition = False
+        elif mod == "D":
+            model = gensim.models.Doc2Vec.load('source/d2vdescription')
+            mtype = "d2v"
+            condition = False
+        elif mod == "stop":
+            condition = False
+        else:
+            print "wrong input. retry or write 'stop' to exit"
+
+    return model, mtype
+
+
+def trymodel(model, mtype):
+    if model:
+        if mtype == "w2v":
+            word = ""
+
+            print "Input a (tokenized and stemmed) word for query the model, or 'stop' for exit"
+            word = raw_input("--> ")
+
+            while word != "stop":
+                try:
+                    ms = model.most_similar(word)
+                    print ms, "\n"
+                except KeyError:
+                    print "Ops! The word is not in the model. Try again...\n"
+
+                print "Input a (tokenized and stemmed) word for query the model, or 'stop' for exit"
+                word = raw_input("--> ")
+
+        elif mtype == "d2v":
+            word = ""
+
+            while word != "stop":
+
+                print "Input 'W' for querying a website, 'P' for querying a word, 'stop' for exit"
+                word = raw_input("--> ")
+
+                if word == "W":
+                    print "Input a website (without http://), or 'stop' to exit:"
+                    word = raw_input("--> ")
+
+                    try:
+                        ms = model.docvecs.most_similar(word), "\n"
+                        print ms, "\n"
+                    except KeyError:
+                        print "Ops! The website is not in the model. Try again...\n"
+
+                elif word == "P":
+                    print "Input a (tokenized and stemmed) word for query the model, or 'stop' for exit"
+                    word = raw_input("--> ")
+
+                    try:
+                        ms = model.most_similar(word)
+                        print ms, "\n"
+                    except KeyError:
+                        print "Ops! The word is not in the model. Try again...\n"
+
+
 def main():
-    # model_1 = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/w2vmodel_description_stemmed')
-    model_2 = gensim.models.Word2Vec.load('/Users/Kate/Desktop/SpazioDati/d2vmodel_keywords_stemmed_20')
+    condition = True
+    while condition:
+        model, mtype = load_model()
+        trymodel(model, mtype)
 
-    # 10 most similar d2v labels are accessed in this way:
-    print model_2.docvecs.most_similar('www.ravinacar.it')
+        print "\n", "Do you want to try another model? [Y/N]"
+        a = raw_input("--> ")
+        if a == "N":
+            condition = False
 
-    # 10 most similar w2v and d2v words are accessed in this way:
-    # print model_2.most_similar('pizz')
-    # print model_2.most_similar('sush')
-    # print model_2.most_similar('vacanz')
-
-    # compute similarity between two (lists of) words
-    # print model_1.similarity(u'sush', u'pizz')
-    # print model_2.similarity(u'sush', u'pizz')
-
-    # compute most similar words of a lists of words
-    # print model_1.most_similar([u'sush', u'pizz'])
-    # print model_2.most_similar([u'sush', u'pizz'])
-
-    # if we want to explore w2v/d2v words
-    # i = 0
-    # for item in model_2.vocab:
-    #     print item
-    #     i += 1
-    #     if i > 100:
-    #         break
 
 if __name__ == '__main__':
     main()
