@@ -19,12 +19,17 @@ def entities_scan():
                 'filter': {
                     'bool': {
                         'must': [{
-                            'exists': {
-                                'field': 'websites'
-                            }},
-                            {'term': {
-                                'headquarters.address.municipality': 'Trento'
-                            }}
+                            'exists': {'field': 'websites'}
+                        },
+                            {
+                            'exists': {'field': 'entities'}
+                        },
+                            {
+                            'term': {'isActive': 'true'}
+                        },
+                            {
+                            'term': {'headquarters.address.municipality': 'Trento'}
+                        }
                         ]
                     }
                 }
@@ -36,17 +41,17 @@ def entities_scan():
     response = helpers.scan(client=es, query=query, index=index)
 
     for item in response:
-        if u'entities' in item[u'_source'].keys():
-            keywords = item[u'_source'][u'entities']
-            keywords_list[item[u'_id']] = [keywords[0][u'url']]
-            for keyword in keywords[1:]:
-                keywords_list[item[u'_id']].append(keyword[u'url'])
+        keywords = item[u'_source'][u'entities']
+        keywords_list[item[u'_id']] = [keywords[0][u'url']]
+        for keyword in keywords[1:]:
+            keywords_list[item[u'_id']].append(keyword[u'url'])
 
     return keywords_list
 
 
 def main(path):
     keyword_url = entities_scan()
+
     with open(path, "wb") as boh:
         writer = csv.writer(boh)
         for key in keyword_url:
