@@ -37,13 +37,18 @@ def entity_sim(company_ent_1, company_ent_2):
             req = requests.get(r + '&topic1=' + s1.join(company_ent_1[i*10:imax])  # max ten at a time
                                + '&topic2=' + s2.join(company_ent_2[j*10:jmax]))   # also max ten at a time
 
-            jsondict = req.json()  # read it in a json format, usable by python
+            try:
+                jsondict = req.json()  # read it in a json format, usable by python
+
+            except ValueError:
+                print 'Error'
+                return "Error"
 
             if u'relatedness' in jsondict.keys():  # if the query produced some results
 
                 for item in jsondict[u'relatedness']:  # let's retrieve every combination
 
-                    under_square += item[u'weight']**2  # part of the forumla for the L2 norm
+                    under_square += item[u'weight']**2  # part of the formula for the L2 norm
 
     return sqrt(under_square)   # return the L2 norm (-> sqrt(a_1^2 +...+a_n^2) )
 
@@ -75,11 +80,11 @@ def main():
     entities = extract_entities()
     keys = entities.keys()
 
-    for i in range(0, 5):
-        for j in range(i+1, 5):
+    for i in range(0, len(keys)):
+        for j in range(i+1, len(keys)):
             sim_dict[(keys[i], keys[j])] = entity_sim(entities[keys[i]], entities[keys[j]])
 
-        print i, "so loooooong the wayyyy...."
+        print i
 
     output = open('source/EntitiesSimilarity.pkl', 'wb')
 
@@ -91,4 +96,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
