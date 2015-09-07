@@ -18,46 +18,17 @@ def scan_index_out(field):
     query = json.dumps({
         '_source': ['_id', 'description', 'keywords'],
         'query': {
-            'match_all': {}
+            'filtered': {
+                'filter': {
+                    'exists': {'field': field}
+                }
+            }
         }
     })
 
     response = helpers.scan(client=es, query=query, index=index)
 
     return response
-
-
-def write_meta_info(url_set, write_path):
-    """this function is used to write, for every website, if they have keywords or description"""
-    # not needed for train the models
-
-    response = scan_index_out()
-
-    i = 0
-    with open(write_path, "wb") as asd:
-        writer = csv.writer(asd)
-        writer.writerow(['url', 'description', 'keywords'])
-        for item in response:
-            i += 1
-            if i % 1000 == 0:
-                print i
-            if item[u'_id'] in url_set:
-
-                linea = [item[u'_id']]
-                if u'description' in item[u'_source'].keys():
-                    linea.append('True')
-                else:
-                    linea.append('False')
-                if u'keywords' in item[u'_source'].keys():
-                    linea.append('True')
-                else:
-                    linea.append('False')
-
-                writer.writerow(linea)
-
-    print i
-
-    return None
 
 
 def write_info(path, url_set, field):
@@ -76,11 +47,9 @@ def write_info(path, url_set, field):
 
             if item[u'_id'] in url_set:
                 lin = [item[u'_id'].encode('utf-8')]
-                if field in item[u'_source'].keys():
-                    j += 1
-                    line = item[u'_source'][field]
-                    lin.append(line)
-                    writer.writerow(lin)
+                line = item[u'_source'][field]
+                lin.append(line)
+                writer.writerow(lin)
 
     print j
     print i
@@ -97,9 +66,6 @@ def main():
             url_list.append(parsed.netloc)
 
     url_set = set(url_list)  # retrieve url without http://
-
-    # write which websites has keywords and/or description
-    write_meta_info(url_set, "source/websitesMetaPresence.csv")
 
     # write all the keywords/description in a csv (modify inside the function that should be
     # used just once)
