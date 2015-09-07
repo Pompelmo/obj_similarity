@@ -20,12 +20,13 @@ def train_model_buck(doc_list, path):
     # https://github.com/piskvorky/gensim/blob/develop/docs/notebooks/doc2vec-IMDB.ipynb
     # bulk training
 
-    alpha, min_alpha, passes = 0.025, 0.001, 10
+    alpha, min_alpha, passes = 0.025, 0.001, 10  # define some parameters that are used for the learning rate
     alpha_delta = (alpha - min_alpha) / passes
 
     print "START %s" % datetime.datetime.now()
 
     train_model = Doc2Vec(size=100, min_count=20, workers=4, window=10)
+    # first of all we need a dictionary so all the models (from the iterations) can use it to train
     train_model.build_vocab(doc_list)
 
     for epoch in range(passes):
@@ -44,29 +45,31 @@ def train_model_buck(doc_list, path):
 
 
 def load_description():
-    all_docs = []
-    path = 'source/websites_description.csv'
+    """load the dictionary for training the model, created from the description"""
+    all_docs = []  # we need a list of TaggedDocument, that are (named)array of two lists: words + tag
+    path = 'source/websites_description.csv'  # read the dictionary[website] = description
 
     with open(path, "r") as asd:
         reader = csv.reader(asd)
         for line in reader:
-            tag = [line[0]]
-            value = sdf.tokenize_description(line[1])
-            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
+            tag = [line[0]]                             # read the tags = website id
+            value = sdf.tokenize_description(line[1])   # create the list of words
+            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))  # create TaggedDocument
 
     return all_docs[:]
 
 
 def load_keywords():
-    all_docs = []
-    path = 'source/websites_keywords.csv'
+    """load the dictionary for training the model, created from the keywords"""
+    all_docs = []  # we need a list of TaggedDocument, that are (named)array of two lists: words + tag
+    path = 'source/websites_keywords.csv'  # load the dictionary[website] = keywords
 
     with open(path, "r") as asd:
         reader = csv.reader(asd)
         for line in reader:
-            tag = [line[0]]
-            value = sdf.tokenize_keywords(line[1])
-            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))
+            tag = [line[0]]                             # load the tag = website id
+            value = sdf.tokenize_keywords(line[1])      # create the list of words
+            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag)) # create TaggedDocument
 
     return all_docs[:]
 

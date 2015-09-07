@@ -12,22 +12,14 @@ import globalvariable as gv
 gv.init()
 http = gv.http
 index = gv.index_atk
-path = gv.path_write_tnurls
+path = 'source/websites_trento.csv'
 
+# create the elasticsearch client
 es = Elasticsearch([http], use_ssl=True, verify_certs=True, ca_certs=certifi.where())
 
 
-def main():
-
-    urls = url_scan()
-
-    with open(path, "wb") as asd:
-        writer = csv.writer(asd)
-        for line in urls:
-            writer.writerow(line)
-
-
 def url_scan():
+    """find all the websites of companies located (headquarters) in Trento"""
     url_list = []
     query = json.dumps({
         '_source': ['_id', 'websites.website', 'websites.confidence'],
@@ -55,7 +47,7 @@ def url_scan():
     for item in response:
         websites = item[u'_source'][u'websites']
 
-        for website in websites:
+        for website in websites:  # companies may have more than one website
 
             # eliminate website with confidence = 0
             if u'confidence' in website.keys():
@@ -68,6 +60,16 @@ def url_scan():
                 url_list.append(line)
 
     return url_list
+
+
+def main():
+
+    urls = url_scan()
+
+    with open(path, "wb") as asd:
+        writer = csv.writer(asd)
+        for line in urls:
+            writer.writerow(line)
 
 
 if __name__ == '__main__':
