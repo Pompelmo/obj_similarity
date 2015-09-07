@@ -66,3 +66,5 @@ if __name__ == '__main__':
     main(read_path='source/websites_keywords.csv',
          method='keywords',
          write_path='source/w2vmodel_keywords_stemmed_20')
+
+    # maybe make it ask of keywords or description
