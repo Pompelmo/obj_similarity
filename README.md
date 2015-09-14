@@ -17,10 +17,14 @@ ask for the similarity using tryEntities.
 
 # tfidf model
 text_corpus -> creates dictionary for bow model, bow model and a dictionary such that we know for every document, which website it represent
+
 text_tfidf -> creates tfidf model and similarity matrix and saves them
+
 url_to_text -> elasticsearch query + token/stem of retrieved text
+
 top_similar -> perform similarity query
 
 # nearest neighbors
 web_mean -> creates dictionary with mean value coordinates
+
 nearest_neigh -> perform similarity queries.
