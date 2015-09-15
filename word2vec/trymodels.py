@@ -65,24 +65,24 @@ def trymodel(model, mtype):
                 word = raw_input("--> ")
 
                 if word == "W":
-                    print "Input a website (without http://), or 'stop' to exit:"
+                    print "Input a website (without http://):"
                     word = raw_input("--> ")
 
                     try:
                         ms = model.docvecs.most_similar(word), "\n"
                         print ms, "\n"
                     except KeyError:
-                        print "Ops! The website is not in the model. Try again...\n"
+                        print "Ops! The website is not in the model. Try again...", "\n"
 
                 elif word == "P":
-                    print "Input a (tokenized and stemmed) word for query the model, or 'stop' for exit"
+                    print "Input a (tokenized and stemmed) word for query the model:"
                     word = raw_input("--> ")
 
                     try:
                         ms = model.most_similar(word)
                         print ms, "\n"
                     except KeyError:
-                        print "Ops! The word is not in the model. Try again...\n"
+                        print "Ops! The word is not in the model. Try again...", "\n"
 
 
 def main():
