@@ -6,17 +6,18 @@ import globalvariable as gv
 from urlparse import urlparse
 
 
+gv.init()
 http = gv.http
-index = gv.index
+index_idg = gv.index
 password = gv.password
-es = Elasticsearch([http], http_auth=password, use_ssl=True, verify_certs=True,
-                   ca_certs=certifi.where())
+esc = Elasticsearch([http], http_auth=password, use_ssl=True, verify_certs=True,
+                    ca_certs=certifi.where())
 
 
-def scan_index_out(field):
+def scan_index_out(field, es, index):
     """scan the index"""
     query = json.dumps({
-        '_source': ['_id', 'description', 'keywords'],
+        '_source': ['_id', field],
         'query': {
             'filtered': {
                 'filter': {
@@ -35,8 +36,8 @@ def write_info(path, url_set, field):
     """function that creates a csv file website url - keywords/description"""
     # should be used once to have in memory information to retrieve
 
-    response = scan_index_out(field)  # scan the index
-
+    response = scan_index_out(field, esc, index_idg)  # scan the index
+    s = ";"
     i = j = 0
     with open(path, "w") as outfile:
         writer = csv.writer(outfile)
@@ -46,9 +47,12 @@ def write_info(path, url_set, field):
                 print i
 
             if item[u'_id'] in url_set:
+                temp_line = []
                 lin = [item[u'_id'].encode('utf-8')]
                 line = item[u'_source'][field]
-                lin.append(line)
+                for tt in line:
+                    temp_line.append(tt.encode('utf-8'))
+                lin.append(s.join(temp_line))
                 writer.writerow(lin)
 
     print j
@@ -69,8 +73,8 @@ def main():
 
     # write all the keywords/description in a csv (modify inside the function that should be
     # used just once)
-    write_info("source/websites_keywords.csv", url_set, u'keywords')
-    write_info("source/websites_description.csv", url_set, u'description')
+    write_info("source/websites_keywords_prova.csv", url_set, u'keywords')
+    # write_info("source/websites_description.csv", url_set, u'description')
 
 
 if __name__ == '__main__':
