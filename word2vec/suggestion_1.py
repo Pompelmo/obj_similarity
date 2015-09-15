@@ -20,7 +20,7 @@ class Suggest(object):
     def __init__(self, model):
         # load the two models
         self.model = model
-
+        gv.init()
         # create elasticsearch client for the queries
         self.http = gv.http
         self.index = gv.index
@@ -142,7 +142,6 @@ class Suggest(object):
 
 
 def main():
-    gv.init()
 
     model = gensim.models.Word2Vec.load('source/w2vmodel_description_stemmed')
 
