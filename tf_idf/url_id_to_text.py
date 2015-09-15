@@ -15,7 +15,7 @@ def transform(url_id):
     ts_text = []
     url_id = [url_id]
     query = json.dumps({
-        'source': ['_id', 'text'],
+        '_source': ['_id', 'text'],
         'query': {
             'filtered': {
                 'filter': {
@@ -25,7 +25,7 @@ def transform(url_id):
         }
     })
 
-    response = es.search(index=index, body=query)
+    response = es.search(index=index, body=query)[u'hits'][u'hits'][0]
     if u'text' in response[u'_source'].keys():
         testo = response[u'_source'][u'text']
         ts_text = ts.tokenize_description(testo)
