@@ -24,7 +24,7 @@ class TokenStem(object):
     def tokenize_description(self, sentence):
         """tokenize a sentence, eliminating stopwords and then stemming words. all the so found
         words are then returned in a list"""
-        lower_string = sentence.lower()  # make it all lowercas
+        lower_string = sentence.lower()  # make it all lowercase
         token_list = []
 
         # find all the words, eliminating all punctuation marks
@@ -35,10 +35,10 @@ class TokenStem(object):
                 # if they are not in the stop words set, stem them
                 token_list.append(self.stemmer.stem(word))
 
-        return token_list
+        return token_list  # it returns a list of tokenized and stemmed word (keeping the order)
 
     def tokenize_keywords(self, sentence):
-        """since keywords is a list of words already, just eliminate numbers and stem it"""
+        """sentence is a list of keywords, numbers are eliminated and words are stemmed"""
         stemmed = []
         for w in sentence:
             n = re.sub(r'[0-9]+', "", w)
@@ -49,7 +49,8 @@ class TokenStem(object):
                 for word in n.split(" "):
                     s += self.stemmer.stem(word) + " "
                 stemmed.append(s[:len(s)-1])
-        return stemmed
+
+        return stemmed  # it returns a list of tokenized and stemmed word (keeping the original order, not needed here)
 
 
 if __name__ == '__main__':
