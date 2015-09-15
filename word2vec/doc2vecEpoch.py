@@ -68,8 +68,9 @@ def load_keywords():
         reader = csv.reader(asd)
         for line in reader:
             tag = [line[0]]                             # load the tag = website id
-            value = sdf.tokenize_keywords(line[1])      # create the list of words
-            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag)) # create TaggedDocument
+            key_list = line[1].split(";")               # make the line an actual list
+            value = sdf.tokenize_keywords(key_list)     # create the list of tokenized-stemmed words
+            all_docs.append(gensim.models.doc2vec.TaggedDocument(value, tag))  # create TaggedDocument
 
     return all_docs[:]
 
