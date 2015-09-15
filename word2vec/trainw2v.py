@@ -52,7 +52,8 @@ class MySentences(object):
             with open(self.path, "r") as asd:
                 read = csv.reader(asd)
                 for line in read:
-                    keywords = self.tokstem.tokenize_keywords(line[1])
+                    key_list = line[1].split(";")
+                    keywords = self.tokstem.tokenize_keywords(key_list)
                     if len(keywords) <= 30:
                         yield keywords
 
