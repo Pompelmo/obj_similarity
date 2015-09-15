@@ -22,9 +22,14 @@ def most_similar(url_id):
 
 
 def main():
-    print "input website"
+    print "input a website to compute 10 most similar websites according to tf_idf, or 'stop' to exit"
     word = raw_input("--> ")
-    most_similar(word)
+
+    while word != "stop":
+
+        most_similar(word)
+        print "input a website to compute 10 most similar websites according to tf_idf, or 'stop' to exit"
+        word = raw_input("--> ")
 
 if __name__ == '__main__':
     main()
