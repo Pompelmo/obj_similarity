@@ -6,9 +6,9 @@ tfidf = gensim.models.TfidfModel.load('source/web_text_tifidf.tfidf_model')
 index = gensim.similarities.Similarity.load('source/tfidfSim.index')
 dictionary = gensim.corpora.Dictionary.load('source/web_text_dict.dict')
 
-output = open('source/web_text_doc.pkl', 'r')       # read dictionary[number of input document] = relative website
-mean_dict = pickle.load(output)
-output.close()
+tfidf_dict = open('source/web_text_doc.pkl', 'r')       # read dictionary[number of input document] = relative website
+mean_dict = pickle.load(tfidf_dict)
+tfidf_dict.close()
 
 
 def most_similar(url_id):
