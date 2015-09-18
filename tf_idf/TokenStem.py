@@ -41,12 +41,19 @@ class TokenStem(object):
         """sentence is a list of keywords, numbers are eliminated and words are stemmed"""
         stemmed = []
         for w in sentence:
+            w = w.lower()
             n = re.sub(r'[0-9]+', "", w)
 
             # since keywords may be composed by one or more words, tokenize every one of them
             if n != "":
                 s = ""
                 for word in n.split(" "):
+
+                    try:
+                        word = unicode(word, "utf-8")
+                    except TypeError:
+                        word = word
+
                     s += self.stemmer.stem(word) + " "
                 stemmed.append(s[:len(s)-1])
 
