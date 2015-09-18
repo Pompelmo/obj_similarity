@@ -13,6 +13,15 @@ from write_metadata import scan_index_out
 from urlparse import urlparse
 import csv
 import pickle
+import sparmap
+
+ts = TokenStem()
+dictionary = gensim.corpora.Dictionary.load('source/web_text_dict_last.dict')
+
+
+def _ts_and_bow(sentence):
+    ts_sentence = ts.tokenize_description(sentence)
+    return dictionary.doc2bow(ts_sentence)
 
 
 def get_urls():                                             # retrieve all url of companies
@@ -28,58 +37,46 @@ def get_urls():                                             # retrieve all url o
     return url_set
 
 
-def iter_docs(url_set, tokstem_izer):
-
-    es = Elasticsearch(['http://es-idg:9200'])
-    gv.init()
-    index = gv.index
-    response = scan_index_out('text', es, index)
-
-    for item in response:
-        if item[u'_id'] in url_set:
-            sentence = tokstem_izer.tokenize_description(item[u'_source'][u'text'])
-            yield sentence
+def _process_input_queue(input_list):
+        output_generator = sparmap.parmap(input_list, fun=_ts_and_bow, workers=6, max_queue_size=-1)
+        for item in output_generator:
+            yield item
 
 
 class MyCorpus(object):
 
-    def __init__(self, dictionary):
+    def __init__(self):
         gv.init()
         self.index = gv.index                                           # websites index
-        self.es = Elasticsearch(['http://es-idg:9200'])
+        self.es = Elasticsearch(['http://es-idg:9200'], max_retries=100,
+                                retry_on_status=True, retry_on_timeout=True)
         self.response = scan_index_out('text', self.es, self.index)     # scan the entire index
         self.url_set = get_urls()                                       # get urls connected to a company
         self.ts = TokenStem()                                           # class for tokenize and stemming
-        self.dictionary = dictionary  # corpus dictionary
-        # should eliminate only once words but since we are already eliminating a lot of doc to
-        # train the model, for the moment I leave it
-        # once_ids = [tokenid for tokenid, docfreq in self.dictionary.dfs.iteritems() if docfreq == 1]
-        # self.dictionary.filter_tokens(once_ids)
-        self.dictionary.compactify()                                    # remove gaps in id sequence
+        self.dictionary = dictionary
         self.enum_doc = dict()
 
     def __iter__(self):                                                             # define the iterator
-        i = 0                                                                    # recover doc order
+        i = j = 0                                                                    # recover doc order
+        input_list = []
         for item in self.response:                                                  # for every retrieved url
             if item[u'_id'] in self.url_set:                                        # if it belongs to a company
                 i += 1
                 self.enum_doc[i] = item[u'_id']                                  # create n doc dict
-                sentence = self.ts.tokenize_description(item[u'_source'][u'text'])  # tokenize the text
-                yield self.dictionary.doc2bow(sentence)                             # transform in doc2bow
+                input_list.append(item[u'_source'][u'text'])
+                if len(input_list) > 1000:
+                    j += 1
+                    print "iterations: ", j, " of 444"
+                    for item_2 in _process_input_queue(input_list):
+                        yield item_2
+                    input_list = []
 
 
 def main():
 
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-    url_set = get_urls()
-    ts = TokenStem()
-
-    dictionary = gensim.corpora.Dictionary(iter_docs(url_set, ts))
-
-    corpus = MyCorpus(dictionary)
-
-    corpus.dictionary.save('source/web_text_dict_last.dict')
+    corpus = MyCorpus()
 
     gensim.corpora.MmCorpus.serialize('source/web_text_mm_last.mm', corpus)
 
