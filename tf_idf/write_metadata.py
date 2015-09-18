@@ -15,7 +15,8 @@ esc = Elasticsearch(['http://elasticsearch:9200'])
 
 def scan_index_out(field, es, index):
     """scan the index"""
-    query = json.dumps({
+    query = {
+        'size': 100,
         '_source': ['_id', field],
         'query': {
             'filtered': {
@@ -24,9 +25,9 @@ def scan_index_out(field, es, index):
                 }
             }
         }
-    })
+    }
 
-    response = helpers.scan(client=es, query=query, index=index)
+    response = helpers.scan(client=es, query=query, index=index, scroll='15m')
 
     return response
 
