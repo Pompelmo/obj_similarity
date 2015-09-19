@@ -1,3 +1,9 @@
+# -------------------------------------------------------------
+# script to compute the top n similar or n nearest
+# websites to a given website
+# -------------------------------------------------------------
+
+
 import url_id_to_text as uitt
 from how_many import Counter
 from gensim.models import Word2Vec
@@ -5,15 +11,15 @@ from gensim.models import Word2Vec
 
 class Integration(object):
     def __init__(self, tfidf, index, tfidf_dict, tfidf_web, mean_dict, nrbs, d2v_model):
-        self.tfidf = tfidf
-        self.index = index
-        self.tfidf_dict = tfidf_dict
-        self.tfidf_web = tfidf_web
-        self.nrbs = nrbs
-        self.mean_dict = mean_dict
-        self.d2v_model = d2v_model
-        self.w2v_model = Word2Vec.load('source/w2vmodel_keywords_scan')
-        self.cc = Counter(self.w2v_model, self.d2v_model, self.tfidf_dict, self.tfidf)
+        self.tfidf = tfidf                      # tfidf model
+        self.index = index                      # tfidf similarity matrix
+        self.tfidf_dict = tfidf_dict            # dictionary for word <-> id
+        self.tfidf_web = tfidf_web              # dictionary for doc n <-> website
+        self.nrbs = nrbs                        # nearest neighbors ball tree structure
+        self.mean_dict = mean_dict              # mean vector <-> website
+        self.d2v_model = d2v_model              # description doc2vec model
+        self.w2v_model = Word2Vec.load('source/w2vmodel_keywords_scan')                 # keywords word2vec model
+        self.cc = Counter(self.w2v_model, self.d2v_model, self.tfidf_dict, self.tfidf)  # counter for keywords/token
 
     def ms_tfidf(self, url_id, n):
         """compute most similar websites using tfidf text model"""
@@ -32,10 +38,10 @@ class Integration(object):
         length_text = []
 
         for ite in sims:
-            url = self.tfidf_web[ite[0]]
-            rank.append(url)             # append website name
+            url = self.tfidf_web[ite[0]]                    # find document website name
+            rank.append(url)                                # append website name
             scores.append(ite[1])                           # append score (the higher the better)
-            length_text.append(self.cc.count_text(url))
+            length_text.append(self.cc.count_text(url))     # count non zero tfidf tokens
 
         return scores, rank, length_text
 
@@ -44,7 +50,7 @@ class Integration(object):
         try:                                            # try to find a website in the dictionary
             value = self.mean_dict[url_id]              # that associates name with mean vector value
         except KeyError:
-            return [""]*n, [""]*n, [0]*n                           # otherwise return empty rank and empty score
+            return [""]*n, [""]*n, [0]*n                # otherwise return empty rank and empty score
 
         # compute the nearest neighbors with the constructed ball_tree
         distance, index = self.nrbs.kneighbors([value], n_neighbors=n+1, return_distance=True)
