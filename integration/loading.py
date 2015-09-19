@@ -1,3 +1,8 @@
+# -------------------------------------------------------------
+# script to load model needed to show ranks
+# -------------------------------------------------------------
+
+
 import pickle
 import gensim
 import numpy as np
@@ -7,12 +12,12 @@ from sklearn.neighbors import NearestNeighbors
 def loading():
 
     print "loading model for tf-idf"
-    tfidf = gensim.models.TfidfModel.load('source/web_text_tifidf.tfidf_model')
-    index = gensim.similarities.Similarity.load('source/tfidfSim.index')
-    tfidf_dict = gensim.corpora.Dictionary.load('source/web_text_dict.dict')
+    tfidf = gensim.models.TfidfModel.load('source/web_text_tifidf_last.tfidf_model')
+    index = gensim.similarities.Similarity.load('source/tfidfSim_last.index')
+    tfidf_dict = gensim.corpora.Dictionary.load('source/web_text_dict_last.dict')
 
     print "loading dictionary for tf-idf"
-    tfidf_dict_file = open('source/web_text_doc.pkl', 'r')
+    tfidf_dict_file = open('source/web_text_doc_last.pkl', 'r')
     tfidf_web = pickle.load(tfidf_dict_file)
     tfidf_dict_file.close()
 
