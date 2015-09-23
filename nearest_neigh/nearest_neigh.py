@@ -7,14 +7,14 @@ def load_dictionary(method):
 
     path = ""
     if method == 'keywords':
-        path = 'source/mean_dict.pkl'
+        path = 'source/mean_dict_key.pkl'
     elif method == 'description':
         path = 'source/mean_dict_des.pkl'
 
     print 'load dictionary'
-    output = open(path, 'r')
-    mean_dictionary = pickle.load(output)
-    output.close()
+    dict_input = open(path, 'r')
+    mean_dictionary = pickle.load(dict_input)
+    dict_input.close()
     print 'dictionary loaded'
 
     return mean_dictionary
@@ -70,7 +70,7 @@ def main():
         return None
 
     while word != "stop":
-
+        print
         print "input a website or 'stop' to exit"
         word = raw_input("--> ")
         similar = query(word, md)
