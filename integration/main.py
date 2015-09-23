@@ -13,21 +13,25 @@
 from loading import loading
 from integration import Integration
 from prettytable import PrettyTable  # to generate the table to print
+from datetime import datetime
 
 
 def tabella(url_id, n, integrate):
     """generate the table to print on the shell"""
 
+    print datetime.now(), "computing w2v most similar"
     w2v_score, w2v_rank, w2v_l = integrate.ms_w2v_key(url_id, n)            # w2v score, rank and n of keywords used
+    print datetime.now(), "computing doc2vec most similar"
     d2v_score, d2v_rank, d2v_l = integrate.ms_d2v(url_id, n)                # d2v score, rank and n of token used
+    print datetime.now(), "computing tfidf most similar"
     tfidf_score, tfidf_rank, tfidf_l = integrate.ms_tfidf(url_id, n)        # tfidf score, rank, and n of token used
-
+    print datetime.now()
     print
     print "table for ", n, "most similar websites to ", url_id
 
-    table = PrettyTable(["w2v score (dist)", "w2v rank", "keywords in the model",           # header
-                         "d2v score (sim)", "d2v rank", "tokens in d2v model",
-                         "tfidf score (sim)", "tfidf rank", "tokens in tfidf model"])
+    table = PrettyTable(["w2v dist", "w2v rank", "# keywords",           # header
+                         "d2v dist", "d2v rank", "# tokens",
+                         "tfidf dist", "tfidf rank", "# tokens "])
 
     for i in range(0, n):                                           # create the rows for the table
         table.add_row([w2v_score[i], w2v_rank[i], w2v_l[i],
@@ -39,10 +43,10 @@ def tabella(url_id, n, integrate):
 
 def main():
     print
-    tfidf, index, tfidf_dict, tfidf_web, mean_dict, nbrs, d2v_model = loading()                 # load the models
+    tfidf, index, tfidf_dict, tfidf_web, mean_dict, ball_tree, w2v_model, d2v_model = loading()       # load the models
 
     # class for rank, len, score computation
-    integrate = Integration(tfidf, index, tfidf_dict, tfidf_web, mean_dict, nbrs, d2v_model)
+    integrate = Integration(tfidf, index, tfidf_dict, tfidf_web, mean_dict, ball_tree, w2v_model, d2v_model)
 
     print
     print "Compute the ranking and scores for the most similar websites using the following models:"
