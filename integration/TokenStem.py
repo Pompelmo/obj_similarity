@@ -17,7 +17,7 @@ class TokenStem(object):
         stop_words = []
         with open(stop_words_path, "r") as asd:
             for line in asd:
-                stop_words.append(line)
+                stop_words.append(line[:len(line)-1])
 
         return set(stop_words)
 
