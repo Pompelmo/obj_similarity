@@ -1,4 +1,3 @@
-
 # -----------------------------------------------------
 # class for tokenize and stem words retrieved from
 # website index, and used for the w2v models
@@ -18,7 +17,7 @@ class TokenStem(object):
         stop_words = []
         with open(stop_words_path, "r") as asd:
             for line in asd:
-                stop_words.append(line)
+                stop_words.append(line[:len(line)-1])
 
         return set(stop_words)
 
@@ -42,13 +41,19 @@ class TokenStem(object):
         """sentence is a list of keywords, numbers are eliminated and words are stemmed"""
         stemmed = []
         for w in sentence:
+            w = w.lower()
             n = re.sub(r'[0-9]+', "", w)
 
             # since keywords may be composed by one or more words, tokenize every one of them
             if n != "":
                 s = ""
                 for word in n.split(" "):
-                    word = unicode(word, "utf-8")
+
+                    try:
+                        word = unicode(word, "utf-8")
+                    except TypeError:
+                        word = word
+
                     s += self.stemmer.stem(word) + " "
                 stemmed.append(s[:len(s)-1])
 
