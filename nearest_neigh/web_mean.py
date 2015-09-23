@@ -4,6 +4,7 @@ from TokenStem import TokenStem
 import numpy
 import pickle
 import sys
+import sklearn.preprocessing as sp
 
 csv.field_size_limit(sys.maxsize)
 
@@ -29,7 +30,7 @@ def get_mean_dictionary(method):
 
     print "start reading"
 
-    with open(csv_path) as asd:
+    with open(csv_path, "r") as asd:
         read = csv.reader(asd)
         if method == 'keywords':
             for line in read:
@@ -48,7 +49,13 @@ def get_mean_dictionary(method):
                             continue
 
                     if vectors:
-                        mean_dict[line[0]] = numpy.mean(vectors, axis=0)
+                        np = numpy.mean(vectors, axis=0)
+                        norm = numpy.linalg.norm(np)
+                        if norm != 0:
+                            normalized = np / norm
+                        else:
+                            normalized = np
+                        mean_dict[line[0]] = normalized
 
         elif method == 'description':
             for line in read:
@@ -66,7 +73,13 @@ def get_mean_dictionary(method):
                         continue
 
                 if vectors:
-                    mean_dict[line[0]] = numpy.mean(vectors, axis=0)
+                    np = numpy.mean(vectors, axis=0)
+                    norm = numpy.linalg.norm(np)
+                    if norm != 0:
+                        normalized = np / norm
+                    else:
+                        normalized = np
+                    mean_dict[line[0]] = normalized
 
     return mean_dict
 
@@ -84,7 +97,7 @@ def main(save_path, method):
 
 if __name__ == '__main__':
 
-    print "construct dictinary with mean vectors: input 'k' for keywords, 'd' for description, " \
+    print "construct dictionary with mean vectors: input 'k' for keywords, 'd' for description, " \
           "everything else to exit"
     word = raw_input("-->")
 
