@@ -45,10 +45,20 @@ class Counter(object):                                           # class with al
         if field == "keywords":
             if u'keywords' in response[u'_source'].keys():
                 return ts.tokenize_keywords(response[u'_source'][u'keywords'])
+            else:
+                return []
 
         elif field == "description":
             if u'description' in response[u'_source'].keys():
                 return ts.tokenize_description(response[u'_source'][u'description'])
+            else:
+                return []
+
+        elif field == "text":
+            if u'text' in response[u'_source'].keys():
+                return ts.tokenize_description(response[u'_source'][u'text'])
+            else:
+                return []
 
         else:
             return []
@@ -56,32 +66,32 @@ class Counter(object):                                           # class with al
     def count_keywords(self, url):
         """function to count keywords present in the model keywords word2vec"""
         keywords = self.q_tokenize(url, "keywords")  # retrieve keywords
-        i = 0
+        key = []
         for item in keywords:
             try:
                 a = self.w2v_model[item]            # this a is useless, but PyCharm complain that self.w2v[item]
-                i += 1                              # has no effect
+                key.append(item)                    # has no effect
             except KeyError:
-                a = 0
+                pass
 
-        return i                        # return how many keywords are present in the model
+        return key                        # return how many keywords are present in the model
 
     def count_description(self, url):
         """function to count description tokens present in the model description doc2vec"""
         description = self.q_tokenize(url, "description")
-        i = 0
+        des = []
         for item in description:
             try:
                 a = self.d2v_model[item]            # this a is useless, but PyCharm complain that self.w2v[item]
-                i += 1                              # has no effect
+                des.append(item)                    # has no effect
             except KeyError:
-                a = 0
+                pass
 
-        return i                        # return how many keywords are present in the model
+        return des                        # return how many text are present in the model
 
     def count_text(self, url):
         """function to count text tokens present in tfidf model"""
-        i = 0
+
         text = uitt.transform(url)                          # retrieve text
         txtbow = self.tfidf_dict.doc2bow(text)              # transform in bag of word vector
         vector = self.tfidf[txtbow]                         # transform in tfidf vector (maybe not necessary)
