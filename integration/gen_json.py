@@ -8,7 +8,8 @@ from pairwise_distance import *
 import json
 from integration import Integration
 from loading import loading
-from create_function import create_function
+from collections import OrderedDict
+
 
 
 class CreateJson(object):
@@ -22,10 +23,18 @@ class CreateJson(object):
         self.d2v_model = d2v_model              # description doc2vec model
         self.w2v_model = w2v_model              # keywords word2vec model
         self.loss = 1.0                             # loss score for the NOT FOUND elements
-        self.method = 'linear'                      # method used by the total score function
         self.w2v_weight = 1.0                       # weight used in the total score function
         self.d2v_weight = 1.0                       # ditto
         self.tfidf_weight = 1.0                     # ditto
+        self.key_len_in = 0.0                           # metadata about input website
+        self.des_len_in = 0.0                           # they are changed when asking for input web metadata
+        self.txt_len_in = 0.0                           # in self.inp_web_info with explicit = True
+        self.mu_in_w = 0.0                          # exponent for input website metadata
+        self.mu_in_d = 0.0                          # changed in "interactive.py"
+        self.mu_in_t = 0.0
+        self.mu_out_w = 0.0                             # exponent for output website metadata
+        self.mu_out_d = 0.0                             # changed in "interactive.py"
+        self.mu_out_t = 0.0
         self.counter = Counter(self.w2v_model, self.d2v_model,
                                self.tfidf_dict, self.tfidf)             # counter for keywords/token
         # to have the integration functions
@@ -39,11 +48,17 @@ class CreateJson(object):
         description = self.counter.count_description(url)       # get description tokens
         text_tokens = self.counter.count_text(url)              # get count of text tokens
 
-        # if explicit = True, keywords and description tokens are explicitly written
+        # if explicit = True, keywords and description tokens are explicitly written. Use it just for input data!
         if explicit:
+
+            self.key_len_in = len(keywords)
+            self.des_len_in = len(description)
+            self.txt_len_in = text_tokens
+
             input_dict = {'metadata': {'keywords': keywords, 'description': description,
-                                       'keywords_number': len(keywords), 'desc_tokens': len(description),
-                                       'text_tokens': text_tokens}}
+                                       'keywords_number': self.key_len_in, 'desc_tokens': self.des_len_in,
+                                       'text_tokens': self.txt_len_in}}
+
         else:
             input_dict = {'metadata': {'keywords_number': len(keywords), 'desc_tokens': len(description),
                                        'text_tokens': text_tokens}}
@@ -79,8 +94,8 @@ class CreateJson(object):
             tfidf_d = metadata['metadata']['text_tokens']
 
             # compute the total score
-            total_score = self.score_func(self.method, w2v_s, d2v_s, tfidf_score[i], self.w2v_weight,
-                                          self.d2v_weight, self.tfidf_weight, w2v_d, d2v_d, tfidf_d)
+            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                          w2v_score=w2v_s, d2v_score=d2v_s, tfidf_score=tfidf_score[i])
 
             text_dict[item].update({'total_score': total_score})
 
@@ -113,8 +128,8 @@ class CreateJson(object):
             tfidf_d = metadata['metadata']['text_tokens']
 
             # compute the total score
-            total_score = self.score_func(self.method, w2v_s, d2v_score[i], tfidf_s, self.w2v_weight,
-                                          self.d2v_weight, self.tfidf_weight, w2v_d, d2v_d, tfidf_d)
+            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                          w2v_score=w2v_s, d2v_score=d2v_score[i], tfidf_score=tfidf_s)
 
             d2v_dict[item].update({'total_score': total_score})
 
@@ -147,8 +162,8 @@ class CreateJson(object):
             tfidf_d = metadata['metadata']['text_tokens']
 
             # compute the total score
-            total_score = self.score_func(self.method, w2v_score[i], d2v_s, tfidf_s, self.w2v_weight,
-                                          self.d2v_weight, self.tfidf_weight, w2v_d, d2v_d, tfidf_d)
+            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                          w2v_score=w2v_score[i], d2v_score=d2v_s, tfidf_score=tfidf_s)
 
             w2v_dict[item].update({'total_score': total_score})
 
@@ -156,27 +171,69 @@ class CreateJson(object):
 
     def get_json(self, url):
         """generate the json object with the wanted information"""
-        txt_web = self.text_websites(url)               # construct dictionary with tfidf similar websites
-        w2v_web = self.w2v_websites(url)                # construct dictionary with word2vec similar websites
-        d2v_web = self.d2v_websites(url)                # construct dictionary doc2vec similar websites
+
+        inp_data = self.inp_web_info(url, explicit=True)  # construct dict with input metadata
+        # putting inp_data as first operation because it changes some class parameters then used in others
+
+        txt_web = self.text_websites(url)                 # construct dictionary with tfidf similar websites
+        w2v_web = self.w2v_websites(url)                  # construct dictionary with word2vec similar websites
+        d2v_web = self.d2v_websites(url)                  # construct dictionary doc2vec similar websites
 
         txt_web.update(w2v_web)                     # update first dictionary with the second, to avoid repetitions
         txt_web.update(d2v_web)                     # and update also with the third one.
 
+        # sort the results by total_score
+        sorted_by_score = OrderedDict(sorted(txt_web.items(), key=lambda x: x[1]['total_score']))
+
         # now a json obj is created: metadata of the input website, with the output given by the three models
-        json_obj = json.dumps({url: self.inp_web_info(url, explicit=True),
-                               'output': txt_web},
+        json_obj = json.dumps({url: inp_data,
+                               'output': sorted_by_score},
                               indent=4, separators=(",", ":"))
         # should be ordered according to the total score
 
         return json_obj
 
-    def score_func(self, method, w2v_score, d2v_score, tfidf_score, w2v_weight, d2v_weight, tfidf_weight,
-                   w2v_meta, d2v_meta, tfidf_meta):
+    def score_func(self, key_len_out, des_len_out, text_len_out,                  # metadata suggested websites
+                   w2v_score, d2v_score, tfidf_score):                            # distances score
 
-        # I don't know if it's necessary...
-        return create_function(method, w2v_score, d2v_score, tfidf_score, w2v_weight, d2v_weight, tfidf_weight,
-                               w2v_meta, d2v_meta, tfidf_meta)
+        # normalization / putting to max when absent
+        if self.key_len_in > 0:
+            key_len_in = min(self.key_len_in / 15.0, 1)
+        else:
+            key_len_in = self.loss
+
+        if self.des_len_in > 0:
+            des_len_in = min(self.des_len_in / 700.0, 1)
+        else:
+            des_len_in = self.loss
+
+        if self.txt_len_in > 0:
+            text_len_in = min(self.txt_len_in / 30000.0, 1)
+        else:
+            text_len_in = self.loss
+
+        # normalization
+        if key_len_out > 0:
+            key_len_out = min(key_len_out / 15.0, 1)
+        else:
+            key_len_out = self.loss
+
+        if des_len_out > 0:
+            des_len_out = min(des_len_out / 700.0, 1)
+        else:
+            des_len_out = self.loss
+
+        if text_len_out > 0:
+            text_len_out = min(text_len_out / 30000.0, 1)
+        else:
+            text_len_out = self.loss
+
+        # computing the partial sum with exponentials mu
+        w2v_part = self.w2v_weight * w2v_score * key_len_in ** self.mu_in_w * key_len_out ** self.mu_out_w
+        d2v_part = self.d2v_weight * d2v_score * des_len_in ** self.mu_in_d * des_len_out ** self.mu_out_d
+        tfidf_part = self.tfidf_weight * tfidf_score * text_len_in ** self.mu_in_t * text_len_out ** self.mu_out_t
+
+        return w2v_part + d2v_part + tfidf_part
 
 
 def main():
