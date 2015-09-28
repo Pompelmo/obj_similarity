@@ -3,7 +3,7 @@ import json
 import globalvariable as gv
 from TokenStem import TokenStem
 
-es = Elasticsearch([''])
+es = Elasticsearch(['http://es-idg:9200'])
 
 gv.init()
 index = gv.index
