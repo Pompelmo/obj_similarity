@@ -182,13 +182,8 @@ class CreateJson(object):
         txt_web.update(w2v_web)                     # update first dictionary with the second, to avoid repetitions
         txt_web.update(d2v_web)                     # and update also with the third one.
 
-        # sort the results by total_score
-        sorted_by_score = OrderedDict(sorted(txt_web.items(), key=lambda x: x[1]['total_score']))
-
         # now a json obj is created: metadata of the input website, with the output given by the three models
-        json_obj = json.dumps({url: inp_data,
-                               'output': sorted_by_score},
-                              indent=4, separators=(",", ":"))
+        json_obj = {url: inp_data, 'output': txt_web.items()}
         # should be ordered according to the total score
 
         return json_obj
