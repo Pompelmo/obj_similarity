@@ -44,4 +44,7 @@ def d2v_distance(d2v_model, web_1, web_2, loss_weight):
     except ValueError:
         return loss_weight                                  # if not present, return max distance
 
+    if not isinstance(cosine_sim, float):
+        return loss_weight
+
     return sqrt(2.0 * (1.0 - cosine_sim)) / 2.0     # return distance of unit vectors
