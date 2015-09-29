@@ -5,11 +5,8 @@
 
 from how_many import Counter
 from pairwise_distance import *
-import json
 from integration import Integration
 from loading import loading
-from collections import OrderedDict
-
 
 
 class CreateJson(object):
@@ -41,143 +38,195 @@ class CreateJson(object):
         self.integrate = Integration(self.tfidf, self.index, self.tfidf_dict, self.tfidf_web,
                                      self.mean_dict, self.ball_tree, self.w2v_model, self.d2v_model)
 
-    def inp_web_info(self, url, explicit=False):
+    def inp_web_info(self, url, dictionary=True, explicit=False):
         """information on the input website"""
 
-        keywords = self.counter.count_keywords(url)             # get keywords number
+        keywords = self.counter.count_keywords(url)             # get keywords
         description = self.counter.count_description(url)       # get description tokens
         text_tokens = self.counter.count_text(url)              # get count of text tokens
 
         # if explicit = True, keywords and description tokens are explicitly written. Use it just for input data!
-        if explicit:
+        if dictionary:
+            if explicit:                        # enriched metadata, used only for input website
 
-            self.key_len_in = len(keywords)
-            self.des_len_in = len(description)
-            self.txt_len_in = text_tokens
+                self.key_len_in = len(keywords)
+                self.des_len_in = len(description)
+                self.txt_len_in = text_tokens
 
-            input_dict = {'metadata': {'keywords': keywords, 'description': description,
-                                       'keywords_number': self.key_len_in, 'desc_tokens': self.des_len_in,
-                                       'text_tokens': self.txt_len_in}}
+                input_dict = {'metadata': {'keywords': keywords, 'description': description,
+                                           'keywords_number': self.key_len_in, 'desc_tokens': self.des_len_in,
+                                           'text_tokens': self.txt_len_in}}
 
-        else:
-            input_dict = {'metadata': {'keywords_number': len(keywords), 'desc_tokens': len(description),
-                                       'text_tokens': text_tokens}}
+            else:
+                input_dict = {'metadata': {'keywords_number': len(keywords), 'desc_tokens': len(description),
+                                           'text_tokens': text_tokens}}
 
-        return input_dict
+            return input_dict
 
-    def text_websites(self, url):
+        else:                           # if I need just the weight for computing the total score
+            return len(keywords), len(description), text_tokens
+
+    def text_websites(self, url, only_web=False):
         """compute the 20 websites most similar according to tfidf, and compute their value also in the other models"""
 
         # get 20 most similar web according to tfidf
-        tfidf_score, tfidf_rank, tfidf_l = self.integrate.ms_tfidf(url, n=20)
+        tfidf_score, tfidf_rank = self.integrate.ms_tfidf(url, n=20, metadata=False)
         text_dict = dict()              # empty dict for json obj creation
 
-        for i in range(0, len(tfidf_rank)):         # for every similar website
+        if not only_web:            # if we want the entire dictionary with metadata and partial score
 
-            item = tfidf_rank[i]                    # get its name
-            metadata = self.inp_web_info(item)      # and its metadata
+            for i in range(0, len(tfidf_rank)):         # for every similar website
 
-            text_dict[item] = metadata              # json obj I part: metadata
+                item = tfidf_rank[i]                    # get its name
+                text_dict[item] = {}
 
-            w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)      # distance according to w2v model
-            d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)      # distance according to d2v model
+                w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)      # distance according to w2v model
+                d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)      # distance according to d2v model
 
-            scores = {'w2v': w2v_s,                 # json obj II part: scores according to the three models
-                      'd2v': d2v_s,
-                      'tfidf': tfidf_score[i]}
+                metadata = self.inp_web_info(item)      # get its metadata
+                text_dict[item].update({'metadata': metadata})              # json obj I part: metadata
+                w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
+                d2v_d = metadata['metadata']['desc_tokens']         # the score function
+                tfidf_d = metadata['metadata']['text_tokens']
 
-            text_dict[item].update({'scores': scores})
+                scores = {'w2v': w2v_s,                 # json obj II part: scores according to the three models
+                          'd2v': d2v_s,
+                          'tfidf': tfidf_score[i]}
 
-            # json obj III part: the total score, computed as some function of scores and metadata
-            w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
-            d2v_d = metadata['metadata']['desc_tokens']         # the score function
-            tfidf_d = metadata['metadata']['text_tokens']
+                text_dict[item].update({'scores': scores})
 
-            # compute the total score
-            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
-                                          w2v_score=w2v_s, d2v_score=d2v_s, tfidf_score=tfidf_score[i])
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                              w2v_score=w2v_s, d2v_score=d2v_s, tfidf_score=tfidf_score[i])
 
-            text_dict[item].update({'total_score': total_score})
+                text_dict[item].update({'total_score': total_score})
+
+        else:                # if we want just a dictionary item: total score
+            for i in range(0, len(tfidf_rank)):
+                item = tfidf_rank[i]                    # get its name
+
+                w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)      # distance according to w2v model
+                d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)      # distance according to d2v model
+
+                text_dict[item] = {}
+
+                w2v_d, d2v_d, tfidf_d = self.inp_web_info(item, dictionary=False)
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                              w2v_score=w2v_s, d2v_score=d2v_s, tfidf_score=tfidf_score[i])
+
+                text_dict[item].update({'total_score': total_score})
 
         return text_dict
 
-    def d2v_websites(self, url):
+    def d2v_websites(self, url, only_web=False):
         """compute the 20 websites most similar according to tfidf, and compute their value also in the other models"""
-        d2v_score, d2v_rank, d2v_l = self.integrate.ms_d2v(url, n=20)    # get 20 most similar websites according to d2v
+        # get 20 most similar websites according to d2v
+        d2v_score, d2v_rank = self.integrate.ms_d2v(url, n=20, metadata=False)
         d2v_dict = dict()           # empty dict for json obj creation
 
-        for i in range(0, len(d2v_rank)):               # for every similar website
+        if not only_web:
 
-            item = d2v_rank[i]                  # get its name
-            metadata = self.inp_web_info(item)  # and retrieve its metadata
+            for i in range(0, len(d2v_rank)):               # for every similar website
 
-            d2v_dict[item] = metadata               # json obj I part: metadata
+                item = d2v_rank[i]                  # get its name
+                d2v_dict[item] = {}
 
-            w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)   # distance according to w2v model
-            tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)  # and according to tfidf
+                w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)   # distance according to w2v model
+                tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)  # and according to tfidf
 
-            scores = {'w2v': w2v_s,                 # json obj II part: scores according to the three models
-                      'd2v': d2v_score[i],
-                      'tfidf': tfidf_s}
+                metadata = self.inp_web_info(item)  # and retrieve its metadata
+                d2v_dict[item].update({'metadata': metadata})  # json obj I part: metadata
+                w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
+                d2v_d = metadata['metadata']['desc_tokens']         # the score function
+                tfidf_d = metadata['metadata']['text_tokens']
 
-            d2v_dict[item].update({'scores': scores})
+                scores = {'w2v': w2v_s,                 # json obj II part: scores according to the three models
+                          'd2v': d2v_score[i],
+                          'tfidf': tfidf_s}
 
-            # json obj III part: the total score, computed as some function of scores and metadata
-            w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
-            d2v_d = metadata['metadata']['desc_tokens']         # the score function
-            tfidf_d = metadata['metadata']['text_tokens']
+                d2v_dict[item].update({'scores': scores})
 
-            # compute the total score
-            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
                                           w2v_score=w2v_s, d2v_score=d2v_score[i], tfidf_score=tfidf_s)
 
-            d2v_dict[item].update({'total_score': total_score})
+                d2v_dict[item].update({'total_score': total_score})
+
+        else:
+            for i in range(0, len(d2v_rank)):
+                item = d2v_rank[i]
+                d2v_dict[item] = {}
+
+                w2v_s = w2v_distance(self.mean_dict, url, item, self.loss)   # distance according to w2v model
+                tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)  # and according to tfidf
+
+                w2v_d, d2v_d, tfidf_d = self.inp_web_info(item, dictionary=False)
+
+                # compute the total score
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                              w2v_score=w2v_s, d2v_score=d2v_score[i], tfidf_score=tfidf_s)
+
+                d2v_dict[item].update({'total_score': total_score})
 
         return d2v_dict
 
-    def w2v_websites(self, url):
+    def w2v_websites(self, url, only_web=False):
         """compute the 20 websites most similar according to tfidf, and compute their value also in the other models"""
-        w2v_score, w2v_rank, w2v_l = self.integrate.ms_w2v_key(url, n=20)     # get 20 most similar web according to w2v
+        # 20 most similar according to w2v
+        w2v_score, w2v_rank = self.integrate.ms_w2v_key(url, n=20, metadata=False)
         w2v_dict = dict()             # empty dict for json obj creation
 
-        for i in range(0, len(w2v_rank)):               # for every similar website
+        if not only_web:
+            for i in range(0, len(w2v_rank)):               # for every similar website
 
-            item = w2v_rank[i]                          # get its name
-            metadata = self.inp_web_info(item)          # and retrieve its metadata
+                item = w2v_rank[i]                          # get its name
+                w2v_dict[item] = {}
 
-            w2v_dict[item] = metadata                   # json obj I part: metadata
+                d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)  # compute the distance according to d2v modl
+                tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)     # and according to tfidf
 
-            d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)    # compute the distance according to d2v model
-            tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)     # and according to tfidf
+                metadata = self.inp_web_info(item)
+                w2v_dict[item].update({'metadata': metadata})                   # json obj I part: metadata
+                w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
+                d2v_d = metadata['metadata']['desc_tokens']         # the score function
+                tfidf_d = metadata['metadata']['text_tokens']
 
-            scores = {'w2v': w2v_score[i],              # json obj II part: scores according to the three models
-                      'd2v': d2v_s,
-                      'tfidf': tfidf_s}
+                scores = {'w2v': w2v_score[i],              # json obj II part: scores according to the three models
+                          'd2v': d2v_s,
+                          'tfidf': tfidf_s}
 
-            w2v_dict[item].update({'scores': scores})
+                w2v_dict[item].update({'scores': scores})
 
-            # json obj III part: the total score, computed as some function of scores and metadata
-            w2v_d = metadata['metadata']['keywords_number']     # retrieve single metadata in order to use them for
-            d2v_d = metadata['metadata']['desc_tokens']         # the score function
-            tfidf_d = metadata['metadata']['text_tokens']
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                              w2v_score=w2v_score[i], d2v_score=d2v_s, tfidf_score=tfidf_s)
 
-            # compute the total score
-            total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
-                                          w2v_score=w2v_score[i], d2v_score=d2v_s, tfidf_score=tfidf_s)
+                w2v_dict[item].update({'total_score': total_score})
 
-            w2v_dict[item].update({'total_score': total_score})
+        else:
+            for i in range(0, len(w2v_rank)):
+                item = w2v_rank[i]
+                w2v_dict[item] = {}
+
+                d2v_s = d2v_distance(self.d2v_model, url, item, self.loss)  # compute the distance according to d2v modl
+                tfidf_s = tfidf_distance(self.tfidf_dict, self.tfidf, url, item, self.loss)     # and according to tfidf
+                w2v_d, d2v_d, tfidf_d = self.inp_web_info(item, dictionary=False)
+
+                # compute the total score
+                total_score = self.score_func(key_len_out=w2v_d, des_len_out=d2v_d, text_len_out=tfidf_d,
+                                              w2v_score=w2v_score[i], d2v_score=d2v_s, tfidf_score=tfidf_s)
+
+                w2v_dict[item].update({'total_score': total_score})
 
         return w2v_dict
 
-    def get_json(self, url):
+    def get_json(self, url, only_web=False):
         """generate the json object with the wanted information"""
 
         inp_data = self.inp_web_info(url, explicit=True)  # construct dict with input metadata
+
         # putting inp_data as first operation because it changes some class parameters then used in others
 
-        txt_web = self.text_websites(url)                 # construct dictionary with tfidf similar websites
-        w2v_web = self.w2v_websites(url)                  # construct dictionary with word2vec similar websites
-        d2v_web = self.d2v_websites(url)                  # construct dictionary doc2vec similar websites
+        txt_web = self.text_websites(url, only_web)                 # construct dictionary with tfidf similar websites
+        w2v_web = self.w2v_websites(url, only_web)                  # construct dictionary with word2v similar websites
+        d2v_web = self.d2v_websites(url, only_web)                  # construct dictionary doc2vec similar websites
 
         txt_web.update(w2v_web)                     # update first dictionary with the second, to avoid repetitions
         txt_web.update(d2v_web)                     # and update also with the third one.
