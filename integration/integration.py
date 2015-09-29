@@ -21,12 +21,15 @@ class Integration(object):
         self.w2v_model = w2v_model              # keywords word2vec model
         self.cc = Counter(self.w2v_model, self.d2v_model, self.tfidf_dict, self.tfidf)  # counter for keywords/token
 
-    def ms_tfidf(self, url_id, n):
+    def ms_tfidf(self, url_id, n, metadata=True):
         """compute most similar websites using tfidf text model"""
         try:
             text = uitt.transform(url_id)                   # given in input a website, return token/stem test
         except IndexError:                                  # the website is not found in the model,
-            return [""]*n, [""]*n, [0]*n                    # return empty scores and empty rank
+            if metadata:
+                return [""]*n, [""]*n, [0]*n                    # return empty scores and empty rank
+            else:
+                return [""]*n, [""]*n
 
         txtbow = self.tfidf_dict.doc2bow(text)              # transform in numeric vector
         vector = self.tfidf[txtbow]                         # return tfidf vector of the text
@@ -35,25 +38,42 @@ class Integration(object):
 
         rank = []
         scores = []
-        length_text = []
 
-        for ite in sims:
-            url = self.tfidf_web[ite[0]]                    # find document website name
-            if url != url_id:
-                rank.append(url)                                # append website name
-                cosine_sim = float(ite[1])                      # cosine similarity
-                dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0     # transform cosine similarity in euclidean distance
-                scores.append(dist)                             # append score (the smaller the better)
-                length_text.append(self.cc.count_text(url))     # count non zero tfidf tokens
+        if metadata:                                        # if we want also metadata
+            length_text = []
 
-        return scores, rank, length_text
+            for ite in sims:
+                url = self.tfidf_web[ite[0]]                    # find document website name
+                if url != url_id:
+                    rank.append(url)                                # append website name
+                    cosine_sim = float(ite[1])                      # cosine similarity
+                    dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0     # transform cosine similarity in euclidean distance
+                    scores.append(dist)                             # append score (the smaller the better)
+                    length_text.append(self.cc.count_text(url))     # count non zero tfidf tokens
 
-    def ms_w2v_key(self, url_id, n):
+            return scores, rank, length_text
+
+        else:
+
+            for ite in sims:
+                url = self.tfidf_web[ite[0]]                    # find document website name
+                if url != url_id:
+                    rank.append(url)                                # append website name
+                    cosine_sim = float(ite[1])                      # cosine similarity
+                    dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0     # transform cosine similarity in euclidean distance
+                    scores.append(dist)                             # append score (the smaller the better)
+
+            return scores, rank
+
+    def ms_w2v_key(self, url_id, n, metadata=True):
         """compute most similar websites using w2v keywords model"""
         try:                                            # try to find a website in the dictionary
             value = self.mean_dict[url_id]              # that associates name with mean vector value
         except KeyError:
-            return [""]*n, [""]*n, [0]*n                # otherwise return empty rank and empty score
+            if metadata:
+                return [""]*n, [""]*n, [0]*n            # return empty scores and empty rank
+            else:
+                return [""]*n, [""]*n
 
         # compute the nearest neighbors with the constructed ball_tree
         distance, index = self.ball_tree.query([value], k=n+1, return_distance=True, sort_results=True)
@@ -68,33 +88,59 @@ class Integration(object):
 
         rank = []
         scores = []
-        length_token = []
 
-        for i in range(0, len(dist)):
-            if keys[ind[i]] != url_id:              # do not return the same website
-                url = keys[ind[i]]
-                rank.append(url)                    # append website name
-                scores.append(dist[i] / 2.0)          # append normalized distance
-                length_token.append(len(self.cc.count_keywords(url)))
+        if metadata:                            # if we want also metadata
+            length_token = []
 
-        return scores, rank, length_token
+            for i in range(0, len(dist)):
+                if keys[ind[i]] != url_id:              # do not return the same website
+                    url = keys[ind[i]]
+                    rank.append(url)                    # append website name
+                    scores.append(dist[i] / 2.0)          # append normalized distance
+                    length_token.append(len(self.cc.count_keywords(url)))
 
-    def ms_d2v(self, url_id, n):
+            return scores, rank, length_token
+
+        else:
+
+            for i in range(0, len(dist)):
+                if keys[ind[i]] != url_id:              # do not return the same website
+                    url = keys[ind[i]]
+                    rank.append(url)                    # append website name
+                    scores.append(dist[i] / 2.0)          # append normalized distance
+
+            return scores, rank
+
+    def ms_d2v(self, url_id, n, metadata=True):
         """compute the most similar websites using d2v descriptions model"""
         try:
             ms = self.d2v_model.docvecs.most_similar(url_id, topn=n)        # compute most similar with d2v
         except KeyError:
-            return [""]*n, [""]*n, [0]*n     # if the website is not present in the model, return empty rank and scores
+            if metadata:
+                return [""]*n, [""]*n, [0]*n            # return empty scores and empty rank
+            else:
+                return [""]*n, [""]*n
 
         rank = []
         scores = []
-        length_token = []
 
-        for item in ms:
-            rank.append(item[0])                              # compute rank and scores list
-            cosine_sim = item[1]
-            dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0       # transform cosine similarity in euclidean distance
-            scores.append(dist)
-            length_token.append(len(self.cc.count_description(item[0])))
+        if metadata:                                               # return also metadata if wanted
+            length_token = []
 
-        return scores, rank, length_token
+            for item in ms:
+                rank.append(item[0])                              # compute rank and scores list
+                cosine_sim = item[1]
+                dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0       # transform cosine similarity in euclidean distance
+                scores.append(dist)
+                length_token.append(len(self.cc.count_description(item[0])))
+
+            return scores, rank, length_token
+
+        else:
+            for item in ms:
+                rank.append(item[0])                              # compute rank and scores list
+                cosine_sim = item[1]
+                dist = sqrt(2.0 * (1.0 - cosine_sim)) / 2.0       # transform cosine similarity in euclidean distance
+                scores.append(dist)
+
+            return scores, rank
