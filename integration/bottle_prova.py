@@ -1,35 +1,55 @@
 from gen_json import CreateJson
 from loading import loading
-from bottle import Bottle, run, request
-from parameters import parameters_choice
+from bottle import Bottle, run, request, error
+from ScoreFunc import ScoreFunc
+from collections import OrderedDict
+import json
 
-tfidf, index, tfidf_dict, tfidf_web, mean_dict, ball_tree, w2v_model, d2v_model = loading()       # load the models
+# load the models needed
+tfidf, index, tfidf_dict, tfidf_web, mean_dict, ball_tree, w2v_model, d2v_model = loading()
 
 # class for rank, len, score computation
 c_json = CreateJson(tfidf, index, tfidf_dict, tfidf_web, mean_dict, ball_tree, w2v_model, d2v_model)
 
-app = Bottle()
+sf = ScoreFunc()  # class for total_score computation
+app = Bottle()  # bottle application
 
 
 @app.route('/suggest')
 def suggestions():
 
-    website = request.query.website
-    model = request.query.model
-    only_website = boolean(request.query.only_website)
+    parameters = request.query.decode()     # retrieve query parameters
+    website = parameters['website']         # which website?
+    model = parameters['model']             # which model?
 
-    c_json.loss, c_json.w2v_weight, c_json.d2v_weight, c_json.tfidf_weight, c_json.mu_in_w, c_json.mu_in_d, \
-        c_json.mu_in_t, c_json.mu_out_w, c_json.mu_out_d, c_json.mu_out_t = parameters_choice(model)
+    try:                                    # modify total_score class parameters
+        sf.parameters_choice(model)
+    except KeyError:                        # or return a json with an error
+        return json.dumps({"website": website, "model": "wrong model in input, try: 'linear', 'simple weighted',"
+                                                        "'w2v', 'd2v' or 'tfidf",
+                           "expected": ".../suggest?website=your_url&model=your_model(&only_website=boolean)"})
 
-    dictionary = c_json.get_json(website)
+    if 'only_website' in parameters.keys():     # do we want metadata or not?
+        try:
+            only_website = boolean(parameters['only_website'])
+        except KeyError:                                            # or wrong input...
+            return json.dumps({"website": website, "model": model,
+                               "only_website": "wrong input: try 't', 'T', 'true', "
+                                               "'True' or '1' to eliminate metadata",
+                               "expected": ".../suggest?website=your_url&model=your_model(&only_website=boolean)"})
 
-    if only_website:
-        dictionary_sort = sorted(dictionary[u'output'].items(), key=lambda x: x[1][u'total_score'])
-        dictionary = [(item[0], item[1][u'total_score']) for item in dictionary_sort]
+    else:
+        only_website = False                    # if nothing is provided, we want metadata!!!
 
-    return dictionary
+    dictionary = c_json.get_json(website, sf, only_website)         # get dictionary from c_json
 
-run(app, host='0.0.0.0', port=8080)
+    # order everything by the total score
+    dictionary_sort = OrderedDict(sorted(dictionary[u'output'].items(), key=lambda x: x[1][u'total_score']))
+
+    # read it as a json object
+    json_obj = json.dumps({website: dictionary[website], 'output': dictionary_sort})
+
+    return json_obj
 
 
 def boolean(string):
@@ -38,9 +58,24 @@ def boolean(string):
     elif string in ['false', 'False', 'f', 'F', 0]:
         return False
     else:
-        raise Exception("Wrong input")
+        raise KeyError
 
 
-json_obj = json.dumps({url: inp_data,
-                               'output': sorted_by_score},
-                              indent=4, separators=(",", ":"))
+@error(404)
+def error404(error):            # try to explain how to make it works
+    string = "Wrong inputs. Provide something of the kind " \
+             ".../suggest?website=your_url&model=your_model(&only_website=boolean) \n" \
+             "where url may be any idg-20150723 website \n \n" \
+             "model can be\n" \
+             "1) 'linear' \n" \
+             "   1/3.0 * w2v distance + 1/3.0 * d2v distance + 1/3.0 * tfidf distance\n" \
+             "2) 'simple_weighted'\n" \
+             "   1/3.0 * w2v distance * # keywords/15 + 1/3.0 * d2v distance * # description tokens / 700 + 1/3.0 * " \
+             "   tfidf distance * # text tokens / 30k\n" \
+             "3+) 'w2v', 'd2v', 'tfidf' for query the single models \n \n" \
+             "only_website False by default, change to True (true, t, T, 1) if you don't want to see metadata"
+
+    return string
+
+
+run(app, host='0.0.0.0', port=8080)
