@@ -27,9 +27,9 @@ class Integration(object):
             text = uitt.transform(url_id)                   # given in input a website, return token/stem test
         except IndexError:                                  # the website is not found in the model,
             if metadata:
-                return [""]*n, [""]*n, [0]*n                    # return empty scores and empty rank
+                return [0]*n, [""]*n, [0]*n                    # return empty scores and empty rank
             else:
-                return [""]*n, [""]*n
+                return [0]*n, [""]*n
 
         txtbow = self.tfidf_dict.doc2bow(text)              # transform in numeric vector
         vector = self.tfidf[txtbow]                         # return tfidf vector of the text
@@ -71,9 +71,9 @@ class Integration(object):
             value = self.mean_dict[url_id]              # that associates name with mean vector value
         except KeyError:
             if metadata:
-                return [""]*n, [""]*n, [0]*n            # return empty scores and empty rank
+                return [0]*n, [""]*n, [0]*n            # return empty scores and empty rank
             else:
-                return [""]*n, [""]*n
+                return [0]*n, [""]*n
 
         # compute the nearest neighbors with the constructed ball_tree
         distance, index = self.ball_tree.query([value], k=n+1, return_distance=True, sort_results=True)
@@ -117,9 +117,9 @@ class Integration(object):
             ms = self.d2v_model.docvecs.most_similar(url_id, topn=n)        # compute most similar with d2v
         except KeyError:
             if metadata:
-                return [""]*n, [""]*n, [0]*n            # return empty scores and empty rank
+                return [0]*n, [""]*n, [0]*n            # return empty scores and empty rank
             else:
-                return [""]*n, [""]*n
+                return [0]*n, [""]*n
 
         rank = []
         scores = []
