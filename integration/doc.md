@@ -56,3 +56,32 @@ for every models, and they return:
 * an ordered list of attribute number (keywords number, ...) [if asked]
 
 <h3> interactive.py </h3>
+*Since other script have been heavily modificated, this doesn't work at the moment. It is used to query the*
+*models from the terminal, it asks in input some parameters that affect the total_score function*
+
+<h3> loading.py </h3>
+This script simply loads the models that we need.
+
+<h3> main.py </h3>
+*In main it is possible to ask for the scores of the three models. A table is drawn on the terminal. This has*
+*to be changed to match the modification done in the other scripts*
+
+<h3> pairwise_distance.py </h3>
+In this script there are three function, each of them is used to compute the distance between two websites 
+(in their vectorial representation) in one of the models.
+
+<h3> ScoreFunc.py </h3>
+Here functions to compute the total score are defined changing the parameters. The function is then chosen 
+in the bottle script, and used to order the suggested websites. The following function can be chosen (at the moment):
+* linear: 1/3.0 * w2v distance + 1/3.0 * d2v distance + 1/3.0 * tfidf distance
+* simple_weighted: 1/3.0 * w2v distance * # keywords/15 + 1/3.0 * d2v distance * # description tokens/700 + 1/3.0 *  tfidf distance * # text tokens/30000
+* w2v: 1 * w2v distance + 0 * d2v distance + 0 * tfidf distance
+* d2v: 0 * w2v distance + 1 * d2v distance + 0 * tfidf distance
+* tfidf: 0 * w2v distance + 0 * d2v distance + 1 * tfidf distance
+
+The numbers to normalize the keywords number, description tokens and text tokens have been chosen after computing
+the sample distribution with **compute_max.py**.
+
+<h3> TokenStem.py </h3>
+This class is used to compute the tokenization and stemming of the list keywords or description or 
+text of the websites. It relies on the library **re** for the tokenization and **nltk** for the stemming.
