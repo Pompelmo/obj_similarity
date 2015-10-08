@@ -1,4 +1,4 @@
-Given a website in input we suggest similar websites. 
+Given a list of websites in input we suggest similar websites. 
 The suggestions are given by some queries on three different models:
  * word2vec on websites keywords
  * doc2vec on websites descriptions
