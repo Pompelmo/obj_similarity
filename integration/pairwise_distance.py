@@ -4,25 +4,29 @@
 # ------------------------------------------------------------
 
 import numpy
-import url_id_to_text as uitt
 from gensim import matutils
 from math import sqrt
 
 
-def tfidf_distance(tfidf_dict, tfidf, web_1, web_2, loss_weight):
+def tfidf_distance(corpora, tfidf, tfidf_web, web_1, web_2, loss_weight):
     """compute the distance (as a function of cosine similarity) between two websites using tfidf model"""
     try:
-        text_1 = uitt.transform(web_1)               # given in input a website, return token/stem test
-        text_2 = uitt.transform(web_2)
-    except IndexError:                               # the website is not found in the model, return max distance
+        indx_1 = tfidf_web.values().index(web_1)            # try to get the index of the website
+        indx_2 = tfidf_web.values().index(web_2)
+    except ValueError:
         return loss_weight
 
-    txtbow_1 = tfidf_dict.doc2bow(text_1)           # transform in numeric vector
-    txtbow_2 = tfidf_dict.doc2bow(text_2)
-    vector_1 = matutils.unitvec(tfidf[txtbow_1])            # return tfidf vector of the text, normalized
-    vector_2 = matutils.unitvec(tfidf[txtbow_2])
+    doc_num_1 = tfidf_web.keys()[indx_1]                    # now get its id (same index)
+    doc_num_2 = tfidf_web.keys()[indx_2]
 
-    cosine_sim = matutils.cossim(vector_1, vector_2)
+    bow_1 = corpora[doc_num_1]                               # transform it in bow
+    bow_2 = corpora[doc_num_2]
+
+    tf_rap_1 = matutils.unitvec(tfidf[bow_1])                                 # get its tfidf representation
+    tf_rap_2 = matutils.unitvec(tfidf[bow_2])
+
+    cosine_sim = min(matutils.cossim(tf_rap_1, tf_rap_2), 1.0)
+
     return sqrt(2.0 * (1.0 - cosine_sim)) / 2.0               # return the distance of the two vectors
 
 
@@ -39,12 +43,18 @@ def w2v_distance(mean_dict, web_1, web_2, loss_weight):
 
 def d2v_distance(d2v_model, web_1, web_2, loss_weight):
     """compute the distance(as a function of cosine similarity) between two websites using d2v model"""
-    try:
-        cosine_sim = d2v_model.docvecs.similarity(web_1, web_2)
-    except ValueError:
-        return loss_weight                                  # if not present, return max distance
 
-    if not isinstance(cosine_sim, float):
+    vector_1 = numpy.array(d2v_model.docvecs[web_1])
+    vector_2 = numpy.array(d2v_model.docvecs[web_2])
+
+    if len(vector_1) == 100 and len(vector_2) == 100:
+
+        vec_unit_1 = vector_1 / numpy.linalg.norm(vector_1)
+        vec_unit_2 = vector_2 / numpy.linalg.norm(vector_2)
+
+        dist = numpy.linalg.norm(vec_unit_1 - vec_unit_2)
+
+        return dist / 2.0
+
+    else:
         return loss_weight
-
-    return sqrt(2.0 * (1.0 - cosine_sim)) / 2.0     # return distance of unit vectors
