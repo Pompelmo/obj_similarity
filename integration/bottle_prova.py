@@ -4,10 +4,15 @@ from bottle import Bottle, run, request, error, static_file, response
 from ScoreFunc import ScoreFunc
 from collections import OrderedDict
 import json
+import pickle
 
 # load the models needed
 corpus, tfidf, index, tfidf_dict, tfidf_web, \
     mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict = loading()
+
+inp_file = open('source/id_key.pkl', 'r')
+id_key = pickle.load(inp_file)
+inp_file.close()
 
 # class for rank, len, score computation
 c_json = CreateJson(corpus, tfidf, index, tfidf_dict, tfidf_web,
@@ -23,19 +28,29 @@ def suggestions():
     parameters = request.query.decode()     # retrieve query parameters
 
     # check if there are no mispellings or different parameters
-    accepted_input = ['website', 'model', 'num_max', 'only_website']
+    accepted_input = ['website', 'model', 'num_max', 'only_website', 'company']
     for key in parameters.keys():
         if key not in accepted_input:
             response.body = json.dumps({"error": "wrong parameter(s) in input",
                                         "expected": ".../suggest?website=a_website[&model=(default='linear)'"
+                                                    "&num_max=(default=60)&only_website=(default=False)]"
+                                                    "\n"
+                                                    "or .../suggest?company=atoka_company_id[&model=(default='linear)'"
                                                     "&num_max=(default=60)&only_website=(default=False)]"})
             return response
 
     # check if website value is provided or return an error
     if 'website' in parameters.keys():
         weblist = parameters.getall('website')         # which website?
+    elif 'company' in parameters.keys():
+        company = parameters['company']
+        try:
+            weblist = id_key[company]['websites']
+        except KeyError:
+            response.body = json.dumps({"error": "'company' not found"})
+            return response
     else:
-        response.body = json.dumps({"error": "parameter 'website' is missing"})
+        response.body = json.dumps({"error": "parameter 'website' or 'company' is missing"})
         return response
 
     # check if model parameter is provided, otherwise set default
@@ -53,6 +68,7 @@ def suggestions():
             return response
     else:
         num = 20
+        parameters['num_max'] = 60
 
     try:
         sf.parameters_choice(model)
@@ -61,8 +77,8 @@ def suggestions():
                                              "'w2v', 'd2v' or 'tfidf"})
         return response
 
-    if num < 10:
-        num_min = 10
+    if num < 30:
+        num_min = 30
     else:
         num_min = num
 
@@ -81,10 +97,12 @@ def suggestions():
 
     # order everything by the total score
     if dictionary:
+        n = min(int(parameters['num_max']), len(dictionary[u'output']))
         dictionary_sort = OrderedDict(sorted(dictionary[u'output'].items(),
-                                             key=lambda x: x[1][u'total_score'])[:num])
+                                             key=lambda x: x[1][u'total_score'])[:n])
         # read it as a json object
-        json_obj = {'output': [{'website': website, 'data': data} for website, data in dictionary_sort.iteritems()]}
+        json_obj = {'input_website_metadata': dictionary[u'input_website_metadata'],
+                    'output': [{'website': website, 'data': data} for website, data in dictionary_sort.iteritems()]}
     else:
         json_obj = {'error': 'websites not present in the models'}
 
@@ -102,9 +120,19 @@ def boolean(string):
         raise KeyError
 
 
+@app.route('/<filename:path>')
+def server_static(filename):
+    return static_file(filename, root='/home/user/code/static')
+
+
 @app.route('/')
 def index():
     return static_file('index.html', root='/home/user/code/static')
+
+
+@app.route('/doc')
+def index():
+    return static_file('suggest_doc.html', root='/home/user/code/static')
 
 
 @error(500)
