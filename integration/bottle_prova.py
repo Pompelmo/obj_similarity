@@ -2,24 +2,35 @@ from gen_json import CreateJson
 from loading import loading
 from bottle import Bottle, run, request, error, static_file, response
 from ScoreFunc import ScoreFunc
-from collections import OrderedDict
+from company_sim import *
 import json
 import pickle
+from datetime import datetime
 
 # load the models needed
-corpus, tfidf, index, tfidf_dict, tfidf_web, \
-    mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict = loading()
+corpus, tfidf, index, tfidf_dict, tfidf_web, db_mean_value, \
+    ball_tree, id_to_web, d2v_model, db_des, w2v_model, db_key, len_dict = loading()
 
+print datetime.now(), "loading company->websites dictionary"
 inp_file = open('source/id_key.pkl', 'r')
 id_key = pickle.load(inp_file)
 inp_file.close()
 
+print datetime.now(), "loading websites->company dictionary"
+inp_file = open('source/web_key.pkl', 'r')
+web_key = pickle.load(inp_file)
+inp_file.close()
+
+print datetime.now(), "initialize the classes"
+
 # class for rank, len, score computation
-c_json = CreateJson(corpus, tfidf, index, tfidf_dict, tfidf_web,
-                    mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict)
+c_json = CreateJson(corpus, tfidf, index, tfidf_dict, tfidf_web, db_mean_value,
+                    ball_tree, id_to_web, d2v_model, db_des, w2v_model, db_key, len_dict)
 
 sf = ScoreFunc()  # class for total_score computation
 app = Bottle()  # bottle application
+
+print datetime.now(), "preparations finished"
 
 
 @app.route('/suggest')
@@ -28,27 +39,46 @@ def suggestions():
     parameters = request.query.decode()     # retrieve query parameters
 
     # check if there are no mispellings or different parameters
-    accepted_input = ['website', 'model', 'num_max', 'only_website', 'company']
+    accepted_input = ['website', 'model', 'num_max', 'only_website', 'company', 'ateco', 'ateco_dist']
     for key in parameters.keys():
         if key not in accepted_input:
             response.body = json.dumps({"error": "wrong parameter(s) in input",
-                                        "expected": ".../suggest?website=a_website[&model=(default='linear)'"
-                                                    "&num_max=(default=60)&only_website=(default=False)]"
-                                                    "\n"
-                                                    "or .../suggest?company=atoka_company_id[&model=(default='linear)'"
-                                                    "&num_max=(default=60)&only_website=(default=False)]"})
+                                        "expected": {"websites": ".../suggest?website=a_website"
+                                                                 "[&model=(default='linear)'&num_max=(default=60)&"
+                                                                 "only_website=(default=False)]",
+                                                     "companies": ".../suggest?company=atoka_company_id"
+                                                                 "[&model=(default='linear)'&num_max=(default=60)&"
+                                                                 "only_website=(default=False)&ateco=(false)]"}})
             return response
 
     # check if website value is provided or return an error
-    if 'website' in parameters.keys():
-        weblist = parameters.getall('website')         # which website?
-    elif 'company' in parameters.keys():
-        company = parameters['company']
-        try:
-            weblist = id_key[company]['websites']
-        except KeyError:
-            response.body = json.dumps({"error": "'company' not found"})
-            return response
+    if 'company' in parameters.keys():
+        companies = parameters.getall('company')        # get all the &company= in the query
+
+        # if company, check if also ateco is present (or it is completely ignored if company is not present)
+        if 'ateco' in parameters.keys():
+            # check if it is given one of the possible ateco
+            ateco_par = ['strict', 'distance', 'auto', 'false']
+
+            if parameters['ateco'] in ateco_par:
+                ateco = parameters['ateco']
+                if ateco == 'distance':
+                    try:
+                        ateco_dist = parameters['ateco_dist']
+                    except KeyError:
+                        ateco_dist = 5
+
+            # if it is given a parameters not in the accepted ones, raise an error
+            else:
+                response.body = json.dumps({"error": "wrong ateco in input",
+                                            "expected": "'strict', 'distance', 'auto' or 'false'[default]"})
+                return response
+        else:
+            ateco = 'false'
+
+    elif 'website' in parameters.keys():        # if both company and website is present in the query, web is ignored
+        weblist = parameters.getall('website')         # get all the &website= in the query
+
     else:
         response.body = json.dumps({"error": "parameter 'website' or 'company' is missing"})
         return response
@@ -70,41 +100,52 @@ def suggestions():
         num = 20
         parameters['num_max'] = 60
 
+    # try to see if the model parameter is correct
     try:
         sf.parameters_choice(model)
     except KeyError:
-        response.body = json.dumps({"error": "wrong model in input, try: 'linear', 'simple weighted', "
-                                             "'w2v', 'd2v' or 'tfidf"})
+        response.body = json.dumps({"error": "wrong model in input, try: 'linear', 'simply_weighted', "
+                                             "'weight_dist', 'w2v', 'd2v' or 'tfidf"})
         return response
 
+    # set a minimum length. The list is then cut at 'num_max'. This is to avoid excluding companies
+    # that have a higher score in the models, but a total score smaller than companies with lower singular scores
+    # in some models
     if num < 30:
         num_min = 30
     else:
         num_min = num
 
+    # check if 'only_website' parameters is present or set it to false
     if 'only_website' in parameters.keys():
+        # check if 'only_website' parameters have a format that can be read as true/false
         try:
             only_website = boolean(parameters['only_website'])
         except KeyError:                                            # or wrong input...
             response.body = json.dumps({"error": "wrong input on only_website: try 't', 'T', 'true', "
                                         "'True' or '1' to eliminate metadata"})
             return response
-
+    # set to false if not found
     else:
         only_website = False                    # if nothing is provided, we want metadata!!!
 
-    dictionary = c_json.get_json(weblist, sf, num_min, only_website)         # get dictionary from c_json
+    # check if the parameter 'company' is present
+    if 'company' in parameters.keys():
+        # if it is, compute similar companies
+        json_obj = company_similarity(c_json, sf, num_min, only_website,
+                                      companies, id_key, web_key, parameters['num_max'], ateco, ateco_dist)
+    # otherwise try with 'website'
+    elif 'website' in parameters.keys():
 
-    # order everything by the total score
-    if dictionary:
-        n = min(int(parameters['num_max']), len(dictionary[u'output']))
-        dictionary_sort = OrderedDict(sorted(dictionary[u'output'].items(),
-                                             key=lambda x: x[1][u'total_score'])[:n])
-        # read it as a json object
-        json_obj = {'input_website_metadata': dictionary[u'input_website_metadata'],
-                    'output': [{'website': website, 'data': data} for website, data in dictionary_sort.iteritems()]}
-    else:
-        json_obj = {'error': 'websites not present in the models'}
+        dictionary = c_json.get_json(weblist, sf, num_min, only_website)         # get dictionary from c_json
+
+        if dictionary:
+            n = min(int(parameters['num_max']), len(dictionary[u'output']))
+
+            json_obj = website_similarity(dictionary, n)
+
+        else:
+            json_obj = {'error': 'websites not present in the models'}
 
     response.body = json.dumps(json_obj)
 
