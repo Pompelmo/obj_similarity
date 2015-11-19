@@ -1,31 +1,53 @@
 from loading import loading
 from gen_json import CreateJson
+from ScoreFunc import ScoreFunc
+from datetime import datetime
+import json
+from collections import OrderedDict
+
+# load the models
+corpora, tfidf, index, tfidf_dict, tfidf_web, \
+    mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict = loading()
+
+# class for rank, len, score computation
+cs = CreateJson(corpora, tfidf, index, tfidf_dict, tfidf_web,
+                mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict)
 
 
-def main():
+def main(weblist):
     """run the main for a not ordered example :)"""
-    from ScoreFunc import ScoreFunc
-    from datetime import datetime
-    # load the models
-    corpora, tfidf, index, tfidf_dict, tfidf_web, \
-        mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict = loading()
 
-    # class for rank, len, score computation
-    cs = CreateJson(corpora, tfidf, index, tfidf_dict, tfidf_web,
-                    mean_dict, ball_tree, d2v_model, des_dict, w2v_model, key_dict)
-    # while True:
-    #     print "insert website or 'stop' to exit"
-    #     website = raw_input("--> ")
-    #     if website == "stop":
-    #         break
-    #     a = datetime.now()
-    #     print cs.get_json(website, ScoreFunc(), n=10, only_web=False)
-    #     print "time taken", datetime.now() - a
+    a = datetime.now()
+    dictionary = cs.get_json(weblist, ScoreFunc(), n=10, only_web=False)         # get dictionary from c_json
 
-    for i in range(0, 10):
-        a = datetime.now()
-        print cs.get_json(['www.spaziodati.eu', 'spaziodati.eu'], ScoreFunc(), n=20, only_web=False)
-        print "time taken iteration ", i, " : ", datetime.now() - a
+    # order everything by the total score
+    if dictionary:
+        dictionary_sort = OrderedDict(sorted(dictionary[u'output'].items(),
+                                             key=lambda x: x[1][u'total_score'])[:10])
+        # read it as a json object
+        json_obj = {'input_website_metadata': dictionary[u'input_website_metadata'],
+                    'output': [{'website': website, 'data': data} for website, data in dictionary_sort.iteritems()]}
+    else:
+        json_obj = {'error': 'websites not present in the models'}
+
+    pretty = json.dumps(json_obj, indent=4, separators=(',', ':'))
+
+    print pretty
+    print "time taken iteration ", datetime.now() - a
 
 if __name__ == '__main__':
-    main()
+    while True:
+        print "new query, 'exit' to exit, anything else to continue"
+        boh = raw_input("--> ")
+        if boh != 'exit':
+            web_list = []
+            while True:
+                print "insert a website or 'stop' when the list is finished"
+                word = raw_input("--> ")
+                if word != "stop":
+                    web_list.append(word)
+                else:
+                    break
+            main(web_list)
+        else:
+            break
