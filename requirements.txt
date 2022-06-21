@@ -5,7 +5,7 @@ Cython==0.23.1
 elasticsearch==1.6.0
 gensim==0.12.1
 nltk==3.0.4
-numpy==1.9.2
+numpy==1.22.0
 scipy==0.16.0
 six==1.9.0
 smart-open==1.2.1
